@@ -7,12 +7,14 @@ import hudson.Extension;
 import hudson.RelativePath;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+import hudson.model.Item;
 import hudson.util.ComboBoxModel;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import lombok.Getter;
 import lombok.Setter;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -303,8 +305,10 @@ public class ThresholdCondition extends AbstractDescribableImpl<ThresholdConditi
          *
          * @return ComboBoxModel filled with application ids.
          */
-        public ComboBoxModel doFillApplicationIdItems(@QueryParameter("teamServerProfileName") @RelativePath("..") final String teamServerProfileName) {
-
+        public ComboBoxModel doFillApplicationIdItems(@AncestorInPath Item item, @QueryParameter("teamServerProfileName") @RelativePath("..") final String teamServerProfileName) {
+            if (!hasFillPermission(item)) {
+                return new ComboBoxModel();
+            }
             // Refresh apps every ${appsRefreshIntervalMinutes} minutes before filling in the combobox
             if (lastAppsRefresh == null || (Calendar.getInstance().getTimeInMillis() - lastAppsRefresh.getTimeInMillis()) / 60000 >= appsRefreshIntervalMinutes) {
                 refreshApps(teamServerProfileName);
@@ -337,7 +341,10 @@ public class ThresholdCondition extends AbstractDescribableImpl<ThresholdConditi
          *
          * @return ListBoxModel filled with vulnerability types.
          */
-        public ListBoxModel doFillThresholdVulnTypeItems(@QueryParameter("teamServerProfileName") @RelativePath("..") final String teamServerProfileName) throws IOException {
+        public ListBoxModel doFillThresholdVulnTypeItems(@AncestorInPath Item item, @QueryParameter("teamServerProfileName") @RelativePath("..") final String teamServerProfileName) throws IOException {
+            if (!hasFillPermission(item)) {
+                return new ListBoxModel();
+            }
             return VulnerabilityTrendHelper.getVulnerabilityTypes(teamServerProfileName);
         }
 
@@ -357,6 +364,13 @@ public class ThresholdCondition extends AbstractDescribableImpl<ThresholdConditi
          */
         public String getDisplayName() {
             return "Threshold Condition";
+        }
+
+        private static boolean hasFillPermission(Item item) {
+            if (item == null) {
+                return Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER);
+            }
+            return item.hasPermission(Item.CONFIGURE);
         }
     }
 
